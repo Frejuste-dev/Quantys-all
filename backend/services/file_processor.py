@@ -37,6 +37,75 @@ class FileProcessorService:
             'QUANTITE', 'QUANTITE_REELLE_IN_INPUT', 'INDICATEUR_COMPTE', 'CODE_ARTICLE', 
             'EMPLACEMENT', 'STATUT', 'UNITE', 'VALEUR', 'ZONE_PK', 'NUMERO_LOT'
         ]
+        
+        logger.info(f"FileProcessorService initialisé avec {len(self.SAGE_COLUMN_NAMES_ORDERED)} colonnes attendues")
+        logger.info(f"Colonnes: {self.SAGE_COLUMN_NAMES_ORDERED}")
+    
+    def detect_file_format(self, filepath: str) -> Tuple[bool, str, Dict]:
+        """Détecte automatiquement le format du fichier et sa structure"""
+        try:
+            file_extension = os.path.splitext(filepath)[1].lower()
+            
+            if file_extension == '.csv':
+                return self._detect_csv_format(filepath)
+            elif file_extension in ['.xlsx', '.xls']:
+                return self._detect_xlsx_format(filepath)
+            else:
+                return False, "Extension non supportée", {}
+                
+        except Exception as e:
+            logger.error(f"Erreur détection format: {e}")
+            return False, str(e), {}
+    
+    def _detect_csv_format(self, filepath: str) -> Tuple[bool, str, Dict]:
+        """Détecte le format d'un fichier CSV"""
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f.readlines()[:10] if line.strip()]
+            
+            format_info = {
+                'total_lines': len(lines),
+                'e_lines': [i for i, line in enumerate(lines) if line.startswith('E;')],
+                'l_lines': [i for i, line in enumerate(lines) if line.startswith('L;')],
+                's_lines': [i for i, line in enumerate(lines) if line.startswith('S;')],
+                'columns_per_line': []
+            }
+            
+            for i, line in enumerate(lines):
+                cols = len(line.split(';'))
+                format_info['columns_per_line'].append(cols)
+                logger.info(f"Ligne {i+1}: {cols} colonnes - {line[:100]}...")
+            
+            return True, "Format détecté", format_info
+            
+        except Exception as e:
+            return False, str(e), {}
+    
+    def _detect_xlsx_format(self, filepath: str) -> Tuple[bool, str, Dict]:
+        """Détecte le format d'un fichier XLSX"""
+        try:
+            df = pd.read_excel(filepath, header=None, dtype=str, engine='openpyxl')
+            
+            format_info = {
+                'total_rows': len(df),
+                'total_cols': len(df.columns),
+                'sample_data': []
+            }
+            
+            for i, row in df.head(10).iterrows():
+                row_data = [str(val).strip() if pd.notna(val) else '' for val in row.values]
+                format_info['sample_data'].append({
+                    'row': i+1,
+                    'columns': len([x for x in row_data if x]),
+                    'first_col': row_data[0] if row_data else '',
+                    'data': row_data[:5]
+                })
+                logger.info(f"Ligne {i+1}: {len(row_data)} colonnes - Première: '{row_data[0] if row_data else ''}' - Données: {row_data[:5]}")
+            
+            return True, "Format détecté", format_info
+            
+        except Exception as e:
+            return False, str(e), {}
     
     def validate_and_process_sage_file(self, filepath: str, file_extension: str, 
                                      session_creation_timestamp: datetime) -> Tuple[bool, Union[str, pd.DataFrame], List[str], Union[date, None]]:
@@ -160,6 +229,11 @@ class FileProcessorService:
                     logger.error(f"Erreur lecture Excel avec xlrd: {e2}")
                     return False, f"Impossible de lire le fichier Excel: {str(e)}", [], None
             
+            logger.info(f"Fichier Excel lu avec succès. Dimensions: {temp_df.shape}")
+            logger.info(f"Premières lignes du fichier:")
+            for i, row in temp_df.head(5).iterrows():
+                logger.info(f"Ligne {i}: {list(row.values)}")
+            
             for i, row_series in temp_df.iterrows():
                 parts = [str(val).strip() if pd.notna(val) else '' for val in row_series.iloc[:max(self.SAGE_COLUMNS.values()) + 1]]
                 
@@ -167,12 +241,15 @@ class FileProcessorService:
                     continue
                 
                 line_type = parts[self.SAGE_COLUMNS['TYPE_LIGNE']] if len(parts) > self.SAGE_COLUMNS['TYPE_LIGNE'] else ''
+                logger.debug(f"Ligne {i+1}: Type='{line_type}', Colonnes={len(parts)}, Contenu: {parts[:5]}...")
                 
                 if line_type in ['E', 'L']:
                     headers.append(';'.join(parts))
                 elif line_type == 'S':
                     if len(parts) < expected_cols:
-                        return False, f"Ligne {i+1} (S;): Format invalide. {expected_cols} colonnes requises.", [], None
+                        logger.error(f"Ligne {i+1} (S;): Format invalide. {expected_cols} colonnes requises, {len(parts)} trouvées.")
+                        logger.error(f"Contenu de la ligne: {parts}")
+                        return False, f"Ligne {i+1} (S;): Format invalide. {expected_cols} colonnes requises, {len(parts)} trouvées.", [], None
                     
                     processed_parts = parts[:expected_cols]
                     if len(processed_parts) < expected_cols:
@@ -186,6 +263,8 @@ class FileProcessorService:
             
             if not data_rows:
                 return False, "Aucune donnée S; trouvée dans le fichier XLSX", [], None
+            
+            logger.info(f"Traitement terminé. {len(data_rows)} lignes de données S; trouvées.")
             
             # Créer le DataFrame
             df = pd.DataFrame(data_rows, columns=self.SAGE_COLUMN_NAMES_ORDERED)

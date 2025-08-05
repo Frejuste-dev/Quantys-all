@@ -303,6 +303,35 @@ def delete_session(session_id: str):
         logger.error(f"Erreur suppression session: {e}")
         return jsonify({'error': 'Erreur interne du serveur'}), 500
 
+@app.route('/api/analyze/<session_id>', methods=['GET'])
+def analyze_file_format(session_id: str):
+    """Endpoint pour analyser le format d'un fichier uploadé"""
+    try:
+        session = session_service.get_session(session_id)
+        if not session:
+            return jsonify({'error': 'Session non trouvée'}), 404
+        
+        filepath = session.original_file_path
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'Fichier non trouvé'}), 404
+        
+        format_detected, format_msg, format_info = file_processor.detect_file_format(filepath)
+        
+        return jsonify({
+            'success': format_detected,
+            'message': format_msg,
+            'format_info': format_info,
+            'expected_format': {
+                'columns_required': len(file_processor.SAGE_COLUMN_NAMES_ORDERED),
+                'column_names': file_processor.SAGE_COLUMN_NAMES_ORDERED,
+                'expected_line_types': ['E', 'L', 'S']
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur analyse format: {e}")
+        return jsonify({'error': 'Erreur interne du serveur'}), 500
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Endpoint de santé amélioré"""
