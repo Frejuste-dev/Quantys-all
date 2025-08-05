@@ -45,10 +45,18 @@ class FileProcessorService:
         """
         try:
             # Validation sécurisée du fichier
-            with open(filepath, 'rb') as f:
-                is_valid, error_msg = FileValidator.validate_file_security(f, 16*1024*1024)
-                if not is_valid:
-                    return False, error_msg, [], None
+            # Validation de l'existence du fichier
+            if not os.path.exists(filepath):
+                return False, "Fichier non trouvé", [], None
+            
+            # Validation de la taille du fichier
+            file_size = os.path.getsize(filepath)
+            max_size = 16 * 1024 * 1024  # 16MB
+            if file_size > max_size:
+                return False, f"Fichier trop volumineux ({file_size / 1024 / 1024:.1f}MB > {max_size / 1024 / 1024:.1f}MB)", [], None
+            
+            if file_size == 0:
+                return False, "Fichier vide", [], None
             
             headers = []
             data_rows = []
@@ -61,7 +69,7 @@ class FileProcessorService:
                 success, data, headers, inventory_date = self._process_csv_file(
                     filepath, expected_num_cols_for_data, session_creation_timestamp
                 )
-            elif file_extension == '.xlsx':
+            elif file_extension in ['.xlsx', '.xls']:
                 success, data, headers, inventory_date = self._process_xlsx_file(
                     filepath, expected_num_cols_for_data, session_creation_timestamp
                 )

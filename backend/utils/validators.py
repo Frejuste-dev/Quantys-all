@@ -14,7 +14,9 @@ class FileValidator:
         'text/csv': ['.csv'],
         'application/vnd.ms-excel': ['.xls'],
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-        'text/plain': ['.csv']  # Parfois les CSV sont détectés comme text/plain
+        'text/plain': ['.csv'],  # Parfois les CSV sont détectés comme text/plain
+        'application/zip': ['.xlsx'],  # Les fichiers XLSX sont des archives ZIP
+        'application/x-zip-compressed': ['.xlsx']  # Variante de détection ZIP
     }
     
     @staticmethod
@@ -52,16 +54,34 @@ class FileValidator:
                 
                 mime_type = magic.from_buffer(file_content, mime=True)
                 
+                # Validation spéciale pour les fichiers XLSX
+                if file_ext == '.xlsx':
+                    # Les fichiers XLSX peuvent être détectés comme ZIP ou comme leur type MIME correct
+                    allowed_xlsx_mimes = [
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        'application/zip',
+                        'application/x-zip-compressed'
+                    ]
+                    if mime_type not in allowed_xlsx_mimes:
+                        return False, f"Type MIME non autorisé pour fichier XLSX: {mime_type}"
+                elif mime_type not in FileValidator.ALLOWED_MIME_TYPES:
                 if mime_type not in FileValidator.ALLOWED_MIME_TYPES:
                     return False, f"Type de fichier non autorisé: {mime_type}"
-                
-                allowed_extensions = FileValidator.ALLOWED_MIME_TYPES[mime_type]
-                if file_ext not in allowed_extensions:
-                    return False, f"Extension {file_ext} non compatible avec le type {mime_type}"
+                else:
+                    # Vérification normale pour les autres types
+                    allowed_extensions = FileValidator.ALLOWED_MIME_TYPES[mime_type]
+                    if file_ext not in allowed_extensions:
+                        return False, f"Extension {file_ext} non compatible avec le type {mime_type}"
                     
             except ImportError:
                 logger.warning("python-magic non disponible, validation MIME ignorée")
                 # Fallback sur l'extension uniquement
+                allowed_extensions = {'.csv', '.xlsx', '.xls'}
+                if file_ext not in allowed_extensions:
+                    return False, f"Extension {file_ext} non autorisée"
+            except Exception as e:
+                logger.warning(f"Erreur lors de la détection MIME: {e}")
+                # Fallback sur l'extension uniquement en cas d'erreur
                 allowed_extensions = {'.csv', '.xlsx', '.xls'}
                 if file_ext not in allowed_extensions:
                     return False, f"Extension {file_ext} non autorisée"

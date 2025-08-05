@@ -81,14 +81,14 @@ def upload_file():
     if not file.filename:
         return jsonify({'error': 'Nom de fichier vide'}), 400
     
+    file_extension = os.path.splitext(file.filename)[1].lower()
+    if file_extension not in ['.csv', '.xlsx', '.xls']:
+        return jsonify({'error': 'Format non supporté. Seuls CSV et XLSX sont acceptés'}), 400
+    
     # Validation sécurisée du fichier
     is_valid, error_msg = FileValidator.validate_file_security(file, config.MAX_FILE_SIZE)
     if not is_valid:
         return jsonify({'error': error_msg}), 400
-    
-    file_extension = os.path.splitext(file.filename)[1].lower()
-    if file_extension not in ['.csv', '.xlsx']:
-        return jsonify({'error': 'Format non supporté. Seuls CSV et XLSX sont acceptés'}), 400
     
     session_creation_timestamp = datetime.now()
     filepath = None
