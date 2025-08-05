@@ -148,7 +148,17 @@ class FileProcessorService:
         first_s_line_numero_inventaire = None
         
         try:
-            temp_df = pd.read_excel(filepath, header=None, dtype=str)
+            # Lecture du fichier Excel avec gestion d'erreurs améliorée
+            try:
+                temp_df = pd.read_excel(filepath, header=None, dtype=str, engine='openpyxl')
+            except Exception as e:
+                logger.error(f"Erreur lecture Excel avec openpyxl: {e}")
+                # Fallback avec xlrd pour les anciens formats
+                try:
+                    temp_df = pd.read_excel(filepath, header=None, dtype=str, engine='xlrd')
+                except Exception as e2:
+                    logger.error(f"Erreur lecture Excel avec xlrd: {e2}")
+                    return False, f"Impossible de lire le fichier Excel: {str(e)}", [], None
             
             for i, row_series in temp_df.iterrows():
                 parts = [str(val).strip() if pd.notna(val) else '' for val in row_series.iloc[:max(self.SAGE_COLUMNS.values()) + 1]]
