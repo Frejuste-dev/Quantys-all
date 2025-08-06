@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, FileText, Download, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Clock, FileText, Download, Trash2, RefreshCw, AlertCircle, BarChart3 } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
+import SessionDashboard from './SessionDashboard';
 import LoadingSpinner from './LoadingSpinner';
 
-const SessionManager = ({ onSessionSelect }) => {
+const SessionManager = ({ onSessionSelect, onClose }) => {
     const [sessions, setSessions] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
+    const [showDashboard, setShowDashboard] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const { getSessions, downloadFile, deleteSession, loading } = useApi();
+
+    const handleSessionSelect = (session) => {
+        if (onSessionSelect) {
+            onSessionSelect(session);
+        }
+        setIsOpen(false); // Fermer le modal après sélection
+    };
 
     const loadSessions = async () => {
         try {
@@ -76,12 +85,22 @@ const SessionManager = ({ onSessionSelect }) => {
 
     if (!isOpen) {
         return (
-            <button
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-200 z-40"
-            >
-                <Clock className="h-6 w-6" />
-            </button>
+            <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
+                <button
+                    onClick={() => setShowDashboard(true)}
+                    className="bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-200"
+                    title="Tableau de bord des sessions"
+                >
+                    <BarChart3 className="h-6 w-6" />
+                </button>
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-200"
+                    title="Sessions récentes"
+                >
+                    <Clock className="h-6 w-6" />
+                </button>
+            </div>
         );
     }
 
@@ -159,14 +178,23 @@ const SessionManager = ({ onSessionSelect }) => {
 
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-2">
+                                        {/* Affichage conditionnel des boutons selon le statut */}
                                         {session.status === 'template_generated' && (
-                                            <button
-                                                onClick={() => handleDownload(session.id, 'template')}
-                                                className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 text-sm"
-                                            >
-                                                <Download className="h-4 w-4 mr-1" />
-                                                Template
-                                            </button>
+                                            <>
+                                                <button
+                                                    onClick={() => handleDownload(session.id, 'template')}
+                                                    className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 text-sm"
+                                                >
+                                                    <Download className="h-4 w-4 mr-1" />
+                                                    Template
+                                                </button>
+                                                <button
+                                                    onClick={() => handleSessionSelect(session)}
+                                                    className="flex items-center px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors duration-200 text-sm font-medium"
+                                                >
+                                                    Reprendre
+                                                </button>
+                                            </>
                                         )}
                                         {session.status === 'completed' && (
                                             <>
@@ -184,14 +212,24 @@ const SessionManager = ({ onSessionSelect }) => {
                                                     <Download className="h-4 w-4 mr-1" />
                                                     Final
                                                 </button>
+                                                <button
+                                                    onClick={() => handleSessionSelect(session)}
+                                                    className="flex items-center px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors duration-200 text-sm font-medium"
+                                                >
+                                                    Reprendre
+                                                </button>
                                             </>
                                         )}
-                                        <button
-                                            onClick={() => onSessionSelect && onSessionSelect(session)}
-                                            className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-sm"
-                                        >
-                                            Reprendre
-                                        </button>
+                                        {(session.status !== 'template_generated' && session.status !== 'completed') && (
+                                            <button
+                                                onClick={() => handleSessionSelect(session)}
+                                                className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-sm"
+                                                disabled={session.status === 'error' || session.status === 'processing'}
+                                            >
+                                                {session.status === 'error' ? 'Erreur' : 
+                                                 session.status === 'processing' ? 'En cours...' : 'Reprendre'}
+                                            </button>
+                                        )}
                                         </div>
                                         <button
                                             onClick={() => setDeleteConfirm(session.id)}
@@ -237,6 +275,17 @@ const SessionManager = ({ onSessionSelect }) => {
                         </div>
                     </div>
                 </div>
+            )}
+            
+            {/* Tableau de bord des sessions */}
+            {showDashboard && (
+                <SessionDashboard
+                    onSessionSelect={(session) => {
+                        onSessionSelect(session);
+                        setShowDashboard(false);
+                    }}
+                    onClose={() => setShowDashboard(false)}
+                />
             )}
         </>
     );
