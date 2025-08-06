@@ -16,6 +16,7 @@ const SessionManager = ({ onSessionSelect, onClose }) => {
             onSessionSelect(session);
         }
         setIsOpen(false); // Fermer le modal après sélection
+        setShowDashboard(false); // Fermer aussi le dashboard si ouvert
     };
 
     const loadSessions = async () => {
@@ -87,26 +88,51 @@ const SessionManager = ({ onSessionSelect, onClose }) => {
         return (
             <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
                 <button
-                    onClick={() => setShowDashboard(true)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDashboard(true);
+                        setIsOpen(false); // S'assurer que SessionManager est fermé
+                    }}
                     className="bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-200"
                     title="Tableau de bord des sessions"
                 >
                     <BarChart3 className="h-6 w-6" />
                 </button>
                 <button
-                    onClick={() => setIsOpen(true)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsOpen(true);
+                        setShowDashboard(false); // S'assurer que Dashboard est fermé
+                    }}
                     className="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-200"
                     title="Sessions récentes"
                 >
                     <Clock className="h-6 w-6" />
                 </button>
+                {/* Afficher le Dashboard même si SessionManager n'est pas ouvert */}
+                {showDashboard && (
+                    <SessionDashboard
+                        onSessionSelect={(session) => {
+                            onSessionSelect(session);
+                            setShowDashboard(false);
+                            setIsOpen(false);
+                        }}
+                        onClose={() => setShowDashboard(false)}
+                    />
+                )}
             </div>
         );
     }
 
     return (
         <>
-            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            {/* SessionManager Modal */}
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+                 onClick={(e) => {
+                     if (e.target === e.currentTarget) {
+                         setIsOpen(false);
+                     }
+                 }}>
             <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
                 <div className="bg-blue-600 text-white p-6 flex items-center justify-between">
                     <h2 className="text-xl font-semibold flex items-center">
@@ -249,7 +275,12 @@ const SessionManager = ({ onSessionSelect, onClose }) => {
 
             {/* Modal de confirmation de suppression */}
             {deleteConfirm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-60 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4"
+                     onClick={(e) => {
+                         if (e.target === e.currentTarget) {
+                             setDeleteConfirm(null);
+                         }
+                     }}>
                     <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
                         <div className="flex items-center mb-4">
                             <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
@@ -277,12 +308,13 @@ const SessionManager = ({ onSessionSelect, onClose }) => {
                 </div>
             )}
             
-            {/* Tableau de bord des sessions */}
-            {showDashboard && (
+            {/* Tableau de bord des sessions - seulement si SessionManager est ouvert */}
+            {showDashboard && isOpen && (
                 <SessionDashboard
                     onSessionSelect={(session) => {
                         onSessionSelect(session);
                         setShowDashboard(false);
+                        setIsOpen(false);
                     }}
                     onClose={() => setShowDashboard(false)}
                 />
