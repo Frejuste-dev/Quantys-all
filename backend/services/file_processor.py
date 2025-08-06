@@ -6,6 +6,7 @@ import re
 import logging
 from typing import Tuple, Dict, List, Union
 from utils.validators import FileValidator, DataValidator
+from services.config_service import config_service
 
 logger = logging.getLogger(__name__)
 
@@ -13,33 +14,25 @@ class FileProcessorService:
     """Service pour le traitement des fichiers Sage X3"""
     
     def __init__(self):
-        # Configuration des colonnes Sage X3
-        self.SAGE_COLUMNS = {
-            'TYPE_LIGNE': 0,
-            'NUMERO_SESSION': 1,
-            'NUMERO_INVENTAIRE': 2,
-            'RANG': 3,
-            'SITE': 4,
-            'QUANTITE': 5,
-            'QUANTITE_REELLE_IN_INPUT': 6,
-            'INDICATEUR_COMPTE': 7,
-            'CODE_ARTICLE': 8,
-            'EMPLACEMENT': 9,
-            'STATUT': 10,
-            'UNITE': 11,
-            'VALEUR': 12,
-            'ZONE_PK': 13,
-            'NUMERO_LOT': 14,
-        }
-        
-        self.SAGE_COLUMN_NAMES_ORDERED = [
-            'TYPE_LIGNE', 'NUMERO_SESSION', 'NUMERO_INVENTAIRE', 'RANG', 'SITE',
-            'QUANTITE', 'QUANTITE_REELLE_IN_INPUT', 'INDICATEUR_COMPTE', 'CODE_ARTICLE', 
-            'EMPLACEMENT', 'STATUT', 'UNITE', 'VALEUR', 'ZONE_PK', 'NUMERO_LOT'
-        ]
+        # Configuration des colonnes Sage X3 depuis le fichier externe
+        self.SAGE_COLUMNS = config_service.get_sage_columns()
+        self.SAGE_COLUMN_NAMES_ORDERED = list(self.SAGE_COLUMNS.keys())
+        self.validation_config = config_service.get_validation_config()
+        self.processing_config = config_service.get_processing_config()
+        self.lot_patterns = config_service.get_lot_patterns()
         
         logger.info(f"FileProcessorService initialisé avec {len(self.SAGE_COLUMN_NAMES_ORDERED)} colonnes attendues")
         logger.info(f"Colonnes: {self.SAGE_COLUMN_NAMES_ORDERED}")
+    
+    def reload_config(self):
+        """Recharge la configuration depuis le fichier externe"""
+        config_service.reload_config()
+        self.SAGE_COLUMNS = config_service.get_sage_columns()
+        self.SAGE_COLUMN_NAMES_ORDERED = list(self.SAGE_COLUMNS.keys())
+        self.validation_config = config_service.get_validation_config()
+        self.processing_config = config_service.get_processing_config()
+        self.lot_patterns = config_service.get_lot_patterns()
+        logger.info("Configuration rechargée depuis le fichier externe")
     
     def detect_file_format(self, filepath: str) -> Tuple[bool, str, Dict]:
         """Détecte automatiquement le format du fichier et sa structure"""
@@ -297,8 +290,9 @@ class FileProcessorService:
         if pd.isna(lot_number):
             return None
         
-        # Pattern pour les lots de format CPKU###MMYY####
-        match = re.search(r'CPKU\d{3}(\d{2})(\d{2})\d{4}', str(lot_number))
+        # Pattern depuis la configuration
+        pattern = self.lot_patterns.get('cpku_pattern', r'CPKU\d{3}(\d{2})(\d{2})\d{4}')
+        match = re.search(pattern, str(lot_number))
         if match:
             try:
                 month = int(match.group(1))
@@ -313,8 +307,9 @@ class FileProcessorService:
         if not numero_inventaire:
             return None
         
-        # Regex pour capturer DDMM avant 'INV'
-        match = re.search(r'(\d{2})(\d{2})INV', numero_inventaire)
+        # Pattern depuis la configuration
+        pattern = self.lot_patterns.get('inventory_date_pattern', r'(\d{2})(\d{2})INV')
+        match = re.search(pattern, numero_inventaire)
         if match:
             try:
                 day = int(match.group(1))
@@ -331,9 +326,10 @@ class FileProcessorService:
             if df.empty:
                 raise ValueError("DataFrame vide pour l'agrégation")
             
-            aggregation_keys = [
+            # Clés d'agrégation depuis la configuration
+            aggregation_keys = self.processing_config.get('aggregation_keys', [
                 'CODE_ARTICLE', 'STATUT', 'EMPLACEMENT', 'ZONE_PK', 'UNITE'
-            ]
+            ])
             
             aggregated = df.groupby(aggregation_keys).agg(
                 Quantite_Theorique_Totale=('QUANTITE', 'sum'),

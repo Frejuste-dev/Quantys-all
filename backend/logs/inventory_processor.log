@@ -1,0 +1,53 @@
+2025-08-06 12:15:40,216 - services.file_processor - INFO - FileProcessorService initialisé avec 15 colonnes attendues
+2025-08-06 12:15:40,295 - services.file_processor - INFO - Colonnes: ['TYPE_LIGNE', 'NUMERO_SESSION', 'NUMERO_INVENTAIRE', 'RANG', 'SITE', 'QUANTITE', 'QUANTITE_REELLE_IN_INPUT', 'INDICATEUR_COMPTE', 'CODE_ARTICLE', 'EMPLACEMENT', 'STATUT', 'UNITE', 'VALEUR', 'ZONE_PK', 'NUMERO_LOT']
+2025-08-06 12:15:40,376 - __main__ - INFO - Démarrage de l'application Moulinette Sage X3
+2025-08-06 12:15:41,729 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.11.116:5000
+2025-08-06 12:15:41,734 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-08-06 12:15:41,742 - werkzeug - INFO -  * Restarting with stat
+2025-08-06 12:15:47,927 - services.file_processor - INFO - FileProcessorService initialisé avec 15 colonnes attendues
+2025-08-06 12:15:47,943 - services.file_processor - INFO - Colonnes: ['TYPE_LIGNE', 'NUMERO_SESSION', 'NUMERO_INVENTAIRE', 'RANG', 'SITE', 'QUANTITE', 'QUANTITE_REELLE_IN_INPUT', 'INDICATEUR_COMPTE', 'CODE_ARTICLE', 'EMPLACEMENT', 'STATUT', 'UNITE', 'VALEUR', 'ZONE_PK', 'NUMERO_LOT']
+2025-08-06 12:15:47,975 - __main__ - INFO - Démarrage de l'application Moulinette Sage X3
+2025-08-06 12:15:48,101 - werkzeug - WARNING -  * Debugger is active!
+2025-08-06 12:15:48,157 - werkzeug - INFO -  * Debugger PIN: 136-490-244
+2025-08-06 12:18:06,250 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:18:06] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:18:06,279 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:18:06] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:18:06,608 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:18:06] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:19:49,670 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:19:49] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:19:49,937 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:19:49] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:19:50,060 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:19:50] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:20:39,543 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:20:39] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:20:43,694 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:20:43] "OPTIONS /api/sessions/f3eaa675 HTTP/1.1" 200 -
+2025-08-06 12:20:44,100 - services.session_service - INFO - Session f3eaa675 supprimée
+2025-08-06 12:20:44,104 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:20:44] "DELETE /api/sessions/f3eaa675 HTTP/1.1" 200 -
+2025-08-06 12:20:48,102 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:20:48] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:20:48,325 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:20:48] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:20:48,440 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:20:48] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:20:52,907 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:20:52] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:21:21,929 - services.session_service - INFO - Session créée: b5b3805d
+2025-08-06 12:21:21,965 - services.session_service - INFO - Session b5b3805d mise à jour
+2025-08-06 12:21:23,560 - services.file_processor - INFO - Fichier Excel lu avec succès. Dimensions: (1565, 15)
+2025-08-06 12:21:23,572 - services.file_processor - INFO - Premières lignes du fichier:
+2025-08-06 12:21:23,586 - services.file_processor - INFO - Ligne 0: ['E', 'BKE012507SES00000001', 'test', '1', 'BKE01', nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2025-08-06 12:21:23,587 - services.file_processor - INFO - Ligne 1: ['L', 'BKE012507SES00000001', 'BKE012507INV00000001', '1', 'BKE01', nan, nan, nan, nan, nan, nan, nan, nan, nan, nan]
+2025-08-06 12:21:23,588 - services.file_processor - INFO - Ligne 2: ['S', 'BKE012507SES00000001', 'BKE012507INV00000001', '1000', 'BKE01', '0', '0', '1', '17CH15A650GAM', nan, 'A', 'UN', '0', 'BKE1', nan]
+2025-08-06 12:21:23,589 - services.file_processor - INFO - Ligne 3: ['S', 'BKE012507SES00000001', 'BKE012507INV00000001', '2000', 'BKE01', '0', '0', '1', '17CH15GAM', nan, 'A', 'UN', '336', 'BKE1', nan]
+2025-08-06 12:21:23,592 - services.file_processor - INFO - Ligne 4: ['S', 'BKE012507SES00000001', 'BKE012507INV00000001', '3000', 'BKE01', '0', '0', '1', '17CH202/6GAM', nan, 'A', 'UN', '0', 'BKE1', nan]
+2025-08-06 12:21:24,225 - services.file_processor - INFO - Traitement terminé. 1563 lignes de données S; trouvées.
+2025-08-06 12:21:26,170 - services.session_service - INFO - Session b5b3805d mise à jour
+2025-08-06 12:21:26,173 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:21:26] "POST /api/upload HTTP/1.1" 200 -
+2025-08-06 12:21:31,726 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:21:31] "GET /api/download/template/b5b3805d HTTP/1.1" 200 -
+2025-08-06 12:22:16,349 - services.session_service - INFO - Session b5b3805d mise à jour
+2025-08-06 12:22:16,352 - __main__ - INFO - Fichier complété traité pour session b5b3805d: 1403 articles avec écarts
+2025-08-06 12:22:21,833 - __main__ - INFO - Écarts distribués pour session b5b3805d avec stratégie FIFO: 345 ajustements
+2025-08-06 12:22:22,003 - services.session_service - INFO - Session b5b3805d mise à jour
+2025-08-06 12:22:22,041 - __main__ - INFO - Fichier final généré: final\data_corrige_b5b3805d.csv
+2025-08-06 12:22:22,071 - services.session_service - INFO - Session b5b3805d mise à jour
+2025-08-06 12:22:22,082 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:22:22] "POST /api/process HTTP/1.1" 200 -
+2025-08-06 12:22:27,306 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:22:27] "GET /api/download/final/b5b3805d HTTP/1.1" 200 -
+2025-08-06 12:22:31,404 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:22:31] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:22:31,686 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:22:31] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:22:32,029 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:22:32] "GET /api/sessions HTTP/1.1" 200 -
+2025-08-06 12:22:47,155 - werkzeug - INFO - 127.0.0.1 - - [06/Aug/2025 12:22:47] "GET /api/sessions HTTP/1.1" 200 -

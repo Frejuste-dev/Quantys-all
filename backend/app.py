@@ -8,6 +8,7 @@ import uuid
 from werkzeug.utils import secure_filename
 import logging
 from dotenv import load_dotenv
+import re
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -15,6 +16,7 @@ load_dotenv()
 # Imports des services
 from services.session_service import SessionService
 from services.file_processor import FileProcessorService
+from services.file_manager import FileManager
 from utils.validators import FileValidator
 from database import db_manager
 
@@ -55,6 +57,12 @@ logger = logging.getLogger(__name__)
 # Initialisation des services
 session_service = SessionService()
 file_processor = FileProcessorService()
+file_manager = FileManager({
+    'UPLOAD_FOLDER': config.UPLOAD_FOLDER,
+    'PROCESSED_FOLDER': config.PROCESSED_FOLDER,
+    'FINAL_FOLDER': config.FINAL_FOLDER,
+    'ARCHIVE_FOLDER': config.ARCHIVE_FOLDER
+})
 
 # Classe de compatibilité (pour migration progressive)
 class SageX3Processor:
@@ -66,6 +74,189 @@ class SageX3Processor:
         self.file_processor = file_processor
         # Dictionnaire temporaire pour compatibilité
         self.sessions = {}
+    
+    def process_completed_file(self, session_id: str, completed_file_path: str):
+        """Traite le fichier Excel complété et calcule les écarts"""
+        try:
+            # Lire le fichier Excel complété
+            completed_df = pd.read_excel(completed_file_path)
+            
+            # Validation des colonnes requises
+            required_columns = ['Code Article', 'Quantité Théorique', 'Quantité Réelle']
+            missing_columns = [col for col in required_columns if col not in completed_df.columns]
+            if missing_columns:
+                raise ValueError(f"Colonnes manquantes dans le fichier: {', '.join(missing_columns)}")
+            
+            # Conversion des types
+            completed_df['Quantité Théorique'] = pd.to_numeric(completed_df['Quantité Théorique'], errors='coerce')
+            completed_df['Quantité Réelle'] = pd.to_numeric(completed_df['Quantité Réelle'], errors='coerce')
+            
+            # Calcul des écarts
+            completed_df['Écart'] = completed_df['Quantité Réelle'] - completed_df['Quantité Théorique']
+            
+            # Filtrer les articles avec écarts
+            discrepancies_df = completed_df[completed_df['Écart'] != 0].copy()
+            
+            # Statistiques
+            total_discrepancy = float(discrepancies_df['Écart'].sum())
+            adjusted_items_count = len(discrepancies_df)
+            
+            # Stocker les résultats dans la session temporaire
+            if session_id not in self.sessions:
+                self.sessions[session_id] = {}
+            
+            self.sessions[session_id].update({
+                'completed_df': completed_df,
+                'discrepancies_df': discrepancies_df,
+                'total_discrepancy': total_discrepancy,
+                'adjusted_items_count': adjusted_items_count
+            })
+            
+            # Mettre à jour la session en base
+            self.session_service.update_session(
+                session_id,
+                total_discrepancy=total_discrepancy,
+                adjusted_items_count=adjusted_items_count
+            )
+            
+            logger.info(f"Fichier complété traité pour session {session_id}: {adjusted_items_count} articles avec écarts")
+            return discrepancies_df
+            
+        except Exception as e:
+            logger.error(f"Erreur traitement fichier complété: {e}")
+            raise
+    
+    def distribute_discrepancies(self, session_id: str, strategy: str = 'FIFO'):
+        """Distribue les écarts selon la stratégie choisie (FIFO/LIFO)"""
+        try:
+            session_data = self.sessions.get(session_id, {})
+            if 'discrepancies_df' not in session_data or 'original_df' not in session_data:
+                raise ValueError("Données de session manquantes pour la distribution")
+            
+            discrepancies_df = session_data['discrepancies_df']
+            original_df = session_data['original_df']
+            
+            # Créer une liste pour stocker les ajustements
+            adjustments = []
+            
+            for _, discrepancy_row in discrepancies_df.iterrows():
+                code_article = discrepancy_row['Code Article']
+                ecart = discrepancy_row['Écart']
+                
+                if ecart == 0:
+                    continue
+                
+                # Trouver tous les lots pour cet article
+                article_lots = original_df[original_df['CODE_ARTICLE'] == code_article].copy()
+                
+                if article_lots.empty:
+                    continue
+                
+                # Trier selon la stratégie
+                if strategy == 'FIFO':
+                    # Plus anciens d'abord (dates les plus anciennes)
+                    article_lots = article_lots.sort_values('Date_Lot', na_position='last')
+                else:  # LIFO
+                    # Plus récents d'abord (dates les plus récentes)
+                    article_lots = article_lots.sort_values('Date_Lot', ascending=False, na_position='last')
+                
+                # Distribuer l'écart
+                remaining_discrepancy = ecart
+                
+                for _, lot_row in article_lots.iterrows():
+                    if abs(remaining_discrepancy) < 0.001:  # Éviter les erreurs de précision
+                        break
+                    
+                    lot_quantity = float(lot_row['QUANTITE'])
+                    
+                    if remaining_discrepancy > 0:
+                        # Écart positif : ajouter du stock
+                        adjustment = min(remaining_discrepancy, lot_quantity * 2)  # Limite arbitraire
+                    else:
+                        # Écart négatif : retirer du stock
+                        adjustment = max(remaining_discrepancy, -lot_quantity)
+                    
+                    if abs(adjustment) > 0.001:
+                        adjustments.append({
+                            'CODE_ARTICLE': code_article,
+                            'NUMERO_LOT': lot_row['NUMERO_LOT'],
+                            'QUANTITE_ORIGINALE': lot_quantity,
+                            'AJUSTEMENT': adjustment,
+                            'QUANTITE_CORRIGEE': lot_quantity + adjustment,
+                            'Date_Lot': lot_row['Date_Lot'],
+                            'original_s_line_raw': lot_row['original_s_line_raw']
+                        })
+                        
+                        remaining_discrepancy -= adjustment
+            
+            # Convertir en DataFrame
+            distributed_df = pd.DataFrame(adjustments)
+            
+            # Stocker dans la session
+            self.sessions[session_id]['distributed_df'] = distributed_df
+            self.sessions[session_id]['strategy_used'] = strategy
+            
+            logger.info(f"Écarts distribués pour session {session_id} avec stratégie {strategy}: {len(adjustments)} ajustements")
+            return distributed_df
+            
+        except Exception as e:
+            logger.error(f"Erreur distribution écarts: {e}")
+            raise
+    
+    def generate_final_file(self, session_id: str):
+        """Génère le fichier CSV final au format Sage X3"""
+        try:
+            session_data = self.sessions.get(session_id, {})
+            if 'distributed_df' not in session_data or 'header_lines' not in session_data:
+                raise ValueError("Données manquantes pour générer le fichier final")
+            
+            distributed_df = session_data['distributed_df']
+            header_lines = session_data['header_lines']
+            
+            # Récupérer les données de session depuis la base
+            db_session_data = self.session_service.get_session_data(session_id)
+            if not db_session_data:
+                raise ValueError("Session non trouvée en base")
+            
+            # Construire le nom du fichier
+            original_filename = db_session_data['original_filename']
+            base_name = os.path.splitext(original_filename)[0]
+            final_filename = f"{base_name}_corrige_{session_id}.csv"
+            final_file_path = os.path.join(config.FINAL_FOLDER, final_filename)
+            
+            # Générer le contenu du fichier
+            lines = []
+            
+            # Ajouter les en-têtes E et L
+            lines.extend(header_lines)
+            
+            # Ajouter les lignes S corrigées
+            for _, row in distributed_df.iterrows():
+                if pd.notna(row['original_s_line_raw']):
+                    # Modifier la ligne originale avec la nouvelle quantité
+                    original_line = str(row['original_s_line_raw'])
+                    parts = original_line.split(';')
+                    
+                    if len(parts) >= 6:  # S'assurer qu'on a assez de colonnes
+                        # Remplacer la quantité (colonne 5, index 5)
+                        parts[5] = str(int(row['QUANTITE_CORRIGEE']))
+                        corrected_line = ';'.join(parts)
+                        lines.append(corrected_line)
+            
+            # Écrire le fichier
+            with open(final_file_path, 'w', encoding='utf-8', newline='') as f:
+                for line in lines:
+                    f.write(line + '\n')
+            
+            # Mettre à jour la session
+            self.session_service.update_session(session_id, final_file_path=final_file_path)
+            
+            logger.info(f"Fichier final généré: {final_file_path}")
+            return final_file_path
+            
+        except Exception as e:
+            logger.error(f"Erreur génération fichier final: {e}")
+            raise
 
 # Initialisation du processeur
 processor = SageX3Processor()
@@ -178,8 +369,8 @@ def process_completed_file_route():
         strategy = request.form.get('strategy', 'FIFO')
         
         # Vérifier que la session existe
-        session = session_service.get_session(session_id)
-        if not session:
+        session_data = session_service.get_session_data(session_id)
+        if not session_data:
             return jsonify({'error': 'Session non trouvée'}), 404
         
         if not file.filename.lower().endswith(('.xlsx', '.xls')):
@@ -235,8 +426,8 @@ def process_completed_file_route():
 def download_file(file_type: str, session_id: str):
     """Endpoint de téléchargement amélioré"""
     try:
-        session = session_service.get_session(session_id)
-        if not session:
+        session_data = session_service.get_session_data(session_id)
+        if not session_data:
             return jsonify({'error': 'Session non trouvée'}), 404
         
         filepath = None
@@ -244,13 +435,13 @@ def download_file(file_type: str, session_id: str):
         mimetype = None
 
         if file_type == 'template':
-            filepath = session.template_file_path
+            filepath = session_data['template_file_path']
             if not filepath:
                 return jsonify({'error': 'Template non généré'}), 404
             download_name = os.path.basename(filepath)
             mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         elif file_type == 'final':
-            filepath = session.final_file_path
+            filepath = session_data['final_file_path']
             if not filepath:
                 return jsonify({'error': 'Fichier final non généré'}), 404
             download_name = os.path.basename(filepath)
@@ -361,11 +552,58 @@ def cleanup_sessions():
     """Nettoie les sessions expirées"""
     try:
         hours = int(request.json.get('hours', 24))
-        count = session_service.cleanup_expired_sessions(hours)
-        return jsonify({'cleaned_sessions': count})
+        
+        # Nettoyage des sessions en base
+        cleaned_sessions = session_service.cleanup_expired_sessions(hours)
+        
+        # Nettoyage des fichiers anciens
+        days_old = int(request.json.get('days_old', 7))
+        file_stats = file_manager.cleanup_old_files(days_old)
+        
+        return jsonify({
+            'cleaned_sessions': cleaned_sessions,
+            'cleaned_files': file_stats,
+            'total_files_cleaned': sum(file_stats.values())
+        })
     except Exception as e:
         logger.error(f"Erreur nettoyage: {e}")
         return jsonify({'error': 'Erreur nettoyage'}), 500
+
+@app.route('/api/archive/<session_id>', methods=['POST'])
+def archive_session(session_id: str):
+    """Archive une session et ses fichiers"""
+    try:
+        # Vérifier que la session existe
+        session_data = session_service.get_session_data(session_id)
+        if not session_data:
+            return jsonify({'error': 'Session non trouvée'}), 404
+        
+        # Archiver les fichiers
+        success = file_manager.archive_session_files(
+            session_id, 
+            session_data.get('created_at')
+        )
+        
+        if success:
+            # Marquer la session comme archivée
+            session_service.update_session(session_id, status='archived')
+            return jsonify({'success': True, 'message': 'Session archivée avec succès'})
+        else:
+            return jsonify({'error': 'Erreur lors de l\'archivage'}), 500
+            
+    except Exception as e:
+        logger.error(f"Erreur archivage session {session_id}: {e}")
+        return jsonify({'error': 'Erreur interne du serveur'}), 500
+
+@app.route('/api/stats/files', methods=['GET'])
+def get_file_stats():
+    """Retourne les statistiques des fichiers"""
+    try:
+        stats = file_manager.get_folder_stats()
+        return jsonify({'folder_stats': stats})
+    except Exception as e:
+        logger.error(f"Erreur stats fichiers: {e}")
+        return jsonify({'error': 'Erreur interne du serveur'}), 500
 
 if __name__ == '__main__':
     logger.info("Démarrage de l'application Moulinette Sage X3")

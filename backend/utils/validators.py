@@ -65,14 +65,14 @@ class FileValidator:
                     if mime_type not in allowed_xlsx_mimes:
                         return False, f"Type MIME non autorisé pour fichier XLSX: {mime_type}"
                 elif mime_type not in FileValidator.ALLOWED_MIME_TYPES:
-                if mime_type not in FileValidator.ALLOWED_MIME_TYPES:
-                    return False, f"Type de fichier non autorisé: {mime_type}"
-                else:
-                    # Vérification normale pour les autres types
-                    allowed_extensions = FileValidator.ALLOWED_MIME_TYPES[mime_type]
-                    if file_ext not in allowed_extensions:
-                        return False, f"Extension {file_ext} non compatible avec le type {mime_type}"
-                    
+                    if mime_type not in FileValidator.ALLOWED_MIME_TYPES:
+                        return False, f"Type de fichier non autorisé: {mime_type}"
+                    else:
+                        # Vérification normale pour les autres types
+                        allowed_extensions = FileValidator.ALLOWED_MIME_TYPES[mime_type]
+                        if file_ext not in allowed_extensions:
+                            return False, f"Extension {file_ext} non compatible avec le type {mime_type}"
+                        
             except ImportError:
                 logger.warning("python-magic non disponible, validation MIME ignorée")
                 # Fallback sur l'extension uniquement
