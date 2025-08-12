@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Integer, Float, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, Integer, Float, ForeignKey, Text, Index
 from sqlalchemy.orm import relationship
 from .session import Base
 
@@ -29,13 +29,21 @@ class InventoryItem(Base):
     # Données calculées
     date_lot = Column(DateTime)
     quantite_corrigee = Column(Float)
-    original_s_line_raw = Column(Text)
+    original_s_line_raw = Column(Text(65535))
     
     # Métadonnées
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relation
     session = relationship("Session", backref="inventory_items")
+    
+    # Index pour améliorer les performances
+    __table_args__ = (
+        Index('idx_inventory_session_id', 'session_id'),
+        Index('idx_inventory_code_article', 'code_article'),
+        Index('idx_inventory_numero_lot', 'numero_lot'),
+        Index('idx_inventory_created_at', 'created_at'),
+    )
     
     def to_dict(self):
         return {
