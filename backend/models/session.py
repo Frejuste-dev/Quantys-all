@@ -1,6 +1,7 @@
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Integer, Float, Text, Boolean, Index
+from sqlalchemy import Column, String, DateTime, Integer, Float, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
 Base = declarative_base()
@@ -32,14 +33,7 @@ class Session(Base):
     last_accessed = Column(DateTime, default=datetime.utcnow)
     
     # Données sérialisées (JSON)
-    header_lines = Column(Text(65535))  # JSON string - TEXT pour MySQL
-    
-    # Index pour améliorer les performances
-    __table_args__ = (
-        Index('idx_session_status', 'status'),
-        Index('idx_session_created_at', 'created_at'),
-        Index('idx_session_last_accessed', 'last_accessed'),
-    )
+    header_lines = Column(Text)  # JSON string
     
     def to_dict(self):
         return {

@@ -1,26 +1,6 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: sage_x3_mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: sage_x3_db
-      MYSQL_USER: sage_x3_user
-      MYSQL_PASSWORD: sage_x3_password
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./mysql/init:/docker-entrypoint-initdb.d
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "sage_x3_user", "-psage_x3_password"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     ports:
@@ -44,22 +24,16 @@ services:
       - ./final:/app/final
       - ./archive:/app/archive
       - ./logs:/app/logs
+      - ./database:/app/database
     environment:
       - FLASK_ENV=production
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_USER=sage_x3_user
-      - MYSQL_PASSWORD=sage_x3_password
-      - MYSQL_DATABASE=sage_x3_db
-      - DATABASE_URL=mysql+pymysql://sage_x3_user:sage_x3_password@mysql:3306/sage_x3_db?charset=utf8mb4
+      - DATABASE_URL=sqlite:///database/sage_x3.db
       - SESSION_EXPIRY_HOURS=24
       - CLEANUP_INTERVAL_MINUTES=60
       - MAX_FILE_SIZE=16777216
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -77,18 +51,12 @@ services:
       - ./final:/app/final
       - ./archive:/app/archive
       - ./logs:/app/logs
+      - ./database:/app/database
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_USER=sage_x3_user
-      - MYSQL_PASSWORD=sage_x3_password
-      - MYSQL_DATABASE=sage_x3_db
-      - DATABASE_URL=mysql+pymysql://sage_x3_user:sage_x3_password@mysql:3306/sage_x3_db?charset=utf8mb4
+      - DATABASE_URL=sqlite:///database/sage_x3.db
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -97,18 +65,12 @@ services:
     command: celery -A app.celery beat --loglevel=info
     volumes:
       - ./logs:/app/logs
+      - ./database:/app/database
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
-      - MYSQL_USER=sage_x3_user
-      - MYSQL_PASSWORD=sage_x3_password
-      - MYSQL_DATABASE=sage_x3_db
-      - DATABASE_URL=mysql+pymysql://sage_x3_user:sage_x3_password@mysql:3306/sage_x3_db?charset=utf8mb4
+      - DATABASE_URL=sqlite:///database/sage_x3.db
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -121,11 +83,8 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
 volumes:
   redis_data:
-  mysql_data:

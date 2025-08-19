@@ -3,41 +3,25 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from models.session import Base
 import logging
-import urllib.parse
 
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
     def __init__(self, database_url=None):
-        if database_url:
-            self.database_url = database_url
-        else:
-            # Construction automatique de l'URL MySQL depuis les variables d'environnement
-            mysql_host = os.getenv('MYSQL_HOST', 'localhost')
-            mysql_port = os.getenv('MYSQL_PORT', '3306')
-            mysql_user = os.getenv('MYSQL_USER', 'sage_x3_user')
-            mysql_password = os.getenv('MYSQL_PASSWORD', '')
-            mysql_database = os.getenv('MYSQL_DATABASE', 'sage_x3_db')
-            
-            # Échapper le mot de passe pour l'URL
-            escaped_password = urllib.parse.quote_plus(mysql_password)
-            
-            self.database_url = f"mysql+pymysql://{mysql_user}:{escaped_password}@{mysql_host}:{mysql_port}/{mysql_database}?charset=utf8mb4"
+        self.database_url = database_url or os.getenv('DATABASE_URL', 'sqlite:///database/sage_x3.db')
         
-        logger.info(f"Configuration base de données: {self.database_url.split('@')[0]}@***")
+        # Créer le dossier database si nécessaire
+        if self.database_url.startswith('sqlite:///'):
+            db_path = self.database_url.replace('sqlite:///', '')
+            db_dir = os.path.dirname(db_path)
+            if db_dir:
+                os.makedirs(db_dir, exist_ok=True)
         
         self.engine = create_engine(
             self.database_url,
             echo=False,  # Mettre à True pour debug SQL
             pool_pre_ping=True,
-            pool_recycle=300,
-            pool_size=10,
-            max_overflow=20,
-            # Configuration spécifique MySQL
-            connect_args={
-                "charset": "utf8mb4",
-                "autocommit": False
-            } if self.database_url.startswith('mysql') else {}
+            pool_recycle=300
         )
         
         self.SessionLocal = scoped_session(sessionmaker(
