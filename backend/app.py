@@ -302,7 +302,11 @@ class SageX3Processor:
                         
                         # S'assurer que le numéro de lot est correct (colonne 14, index 14)
                         if len(parts) > 14 and row['NUMERO_LOT']:
-                            parts[14] = str(row['NUMERO_LOT'])
+                            # Pour les lots LOTECART, utiliser "LOTECART" comme numéro de lot
+                            if row['TYPE_LOT'] == 'lotecart' or row['NUMERO_LOT'] == 'LOTECART':
+                                parts[14] = 'LOTECART'
+                            else:
+                                parts[14] = str(row['NUMERO_LOT'])
                         
                         corrected_line = ';'.join(parts)
                         lines.append(corrected_line)
