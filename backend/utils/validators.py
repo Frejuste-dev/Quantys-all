@@ -144,12 +144,13 @@ class DataValidator:
         if 'Quantité Réelle' in df.columns:
             # Conversion et validation des quantités réelles
             real_qty = pd.to_numeric(df['Quantité Réelle'], errors='coerce')
+            theo_qty = pd.to_numeric(df['Quantité Théorique'], errors='coerce')
             
             # Vérification des valeurs manquantes
             missing_qty = real_qty.isna()
             if missing_qty.any():
                 missing_info = df.loc[missing_qty, ['Code Article', 'Numéro Inventaire', 'Numéro Lot']].apply(
-                    lambda x: f"{x['Code Article']} - Lot: {x['Numéro Lot'] if x['Numéro Lot'] else 'Sans lot'} (Inv: {x['Numéro Inventaire']})", axis=1
+                    lambda x: f"{x['Code Article']} - Lot: {x['Numéro Lot']} (Inv: {x['Numéro Inventaire']})", axis=1
                 ).tolist()
                 errors.append(f"Quantités réelles manquantes pour: {', '.join(map(str, missing_info[:5]))}")
                 if len(missing_info) > 5:
@@ -159,9 +160,15 @@ class DataValidator:
             negative_qty = real_qty < 0
             if negative_qty.any():
                 negative_info = df.loc[negative_qty, ['Code Article', 'Numéro Inventaire', 'Numéro Lot']].apply(
-                    lambda x: f"{x['Code Article']} - Lot: {x['Numéro Lot'] if x['Numéro Lot'] else 'Sans lot'} (Inv: {x['Numéro Inventaire']})", axis=1
+                    lambda x: f"{x['Code Article']} - Lot: {x['Numéro Lot']} (Inv: {x['Numéro Inventaire']})", axis=1
                 ).tolist()
                 errors.append(f"Quantités négatives pour: {', '.join(map(str, negative_info[:5]))}")
+            
+            # Information sur les lots LOTECART détectés
+            lotecart_mask = (theo_qty == 0) & (real_qty > 0)
+            if lotecart_mask.any():
+                lotecart_count = lotecart_mask.sum()
+                logger.info(f"{lotecart_count} lots LOTECART détectés (quantité théorique = 0, quantité réelle > 0)")
         
         is_valid = len(errors) == 0
         message = "Template valide" if is_valid else "Erreurs détectées"
