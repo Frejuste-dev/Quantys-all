@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Dict, Any
 
 @dataclass
@@ -25,13 +25,22 @@ class Config:
     
     # Configuration Sage X3 (externalisée)
     SAGE_COLUMNS: Dict[str, int] = {
-        'QUANTITE': int(os.getenv('SAGE_COL_QUANTITE', '5')),
-        'CODE_ARTICLE': int(os.getenv('SAGE_COL_CODE_ARTICLE', '7')),
-        'NUMERO_LOT': int(os.getenv('SAGE_COL_NUMERO_LOT', '13')),
-        'NUMERO_SESSION': int(os.getenv('SAGE_COL_NUMERO_SESSION', '1')),
-        'NUMERO_INVENTAIRE': int(os.getenv('SAGE_COL_NUMERO_INVENTAIRE', '2')),
-        'SITE': int(os.getenv('SAGE_COL_SITE', '4')),
-    }
+        'TYPE_LIGNE': 0,
+        'NUMERO_SESSION': 1,
+        'NUMERO_INVENTAIRE': 2,
+        'RANG': 3,
+        'SITE': 4,
+        'QUANTITE': 5,
+        'QUANTITE_REELLE_IN_INPUT': 6,
+        'INDICATEUR_COMPTE': 7,
+        'CODE_ARTICLE': 8,
+        'EMPLACEMENT': 9,
+        'STATUT': 10,
+        'UNITE': 11,
+        'VALEUR': 12,
+        'ZONE_PK': 13,
+        'NUMERO_LOT': 14,
+    })
     
     def __post_init__(self):
         """Création automatique des dossiers"""
