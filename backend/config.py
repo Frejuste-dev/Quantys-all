@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Dict, Any
 
 @dataclass
@@ -20,7 +21,7 @@ class Config:
     
     # Sécurité
     SECRET_KEY: str = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
-    ALLOWED_EXTENSIONS: set = {'.csv', '.xlsx', '.xls'}
+    ALLOWED_EXTENSIONS: set = field(default_factory=lambda: {'.csv', '.xlsx', '.xls'})
     
     # Configuration Sage X3 (externalisée)
     SAGE_COLUMNS: Dict[str, int] = {
